@@ -53,12 +53,9 @@
       - https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
       exclude: kube*
   - name: "SELinuxを無効化する"
-    shell: setenforce 0
-  - name: "再起動後もSELinuxが無効になるようにする"
-    replace:
-      path: /etc/selinux/config
-      regexp: '^(SELINUX=.*)$'
-      replace: 'SELINUX=permissive'
+    selinux:
+      policy: targeted
+      state: permissive
   - name: "kubeadm、kubelet、kubectlのインストール"
     yum:
       name:
