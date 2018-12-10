@@ -133,8 +133,10 @@
     wait_for:
       host: "{{ groups.master[0] }}"
       port: 6443
+    when: hostvars[groups.master[0]].kubeadm_join is defined
   - name: "kubeadm joinコマンドを確認"
     debug:
       var: hostvars[groups.master[0]].kubeadm_join.stdout
   - name: "kubeadm joinコマンドを実行する"
     shell: "{{ hostvars[groups.master[0]].kubeadm_join.stdout }}"
+    when: hostvars[groups.master[0]].kubeadm_join is defined
