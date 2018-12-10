@@ -114,7 +114,6 @@
       owner: vagrant
       group: vagrant
       mode: 0644
-  tasks:
   - name: "APIサーバーが起動しているのを確認"
     wait_for:
       host: "{{ groups.master[0] }}"
