@@ -12,7 +12,7 @@
     retries: 5
     until: result is succeeded
     delay: 5
-  - name: "Dockerのレポジトリ追加"
+  - name: "Dockerのリポジトリ追加"
     get_url:
       url: https://download.docker.com/linux/centos/docker-ce.repo
       dest: /etc/yum.repos.d/docer-ce.repo
