@@ -28,7 +28,7 @@
     yum:
       name:
       - docker-ce-{{ docker_version.stdout }}
-      state: latest
+      state: present
     register: result
     retries: 5
     until: result is succeeded
