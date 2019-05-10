@@ -2,5 +2,5 @@
 
 ```
 vagrant up
-ansible-playbook -i hosts main.yml
+ansible-playbook -i hosts site.yml
 ```

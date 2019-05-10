@@ -1,0 +1,65 @@
+- hosts: master, node
+  become: yes
+  roles:
+  - docker
+  - kubeadm
+- hosts: master
+  become: yes
+  tasks:
+  - name: "kubeadm initの実行"
+    shell: kubeadm init --apiserver-advertise-address={{ ipaddr.stdout }} --apiserver-cert-extra-sans={{ ipaddr.stdout }} --node-name $(hostname -s) --pod-network-cidr=192.168.0.0/16 | tee -a kubeadm_init.log
+    args:
+      creates: kubeadm_init.log
+    register: kubeadm_init
+  # - name: "デバッグ"
+  #   debug:
+  #     msg: "{{ kubeadm_init.stdout_lines | select('match','^(\\s)*kubeadm(\\s)join') | list | first }}"
+  - name: ".kubeディレクトリーを作成"
+    file:
+      path: /home/vagrant/.kube
+      state: directory
+      owner: vagrant
+      group: vagrant
+      mode: 0755
+  - name: "admin.confをコピー"
+    copy:
+      src: /etc/kubernetes/admin.conf
+      dest: /home/vagrant/.kube/config
+      remote_src: yes
+      owner: vagrant
+      group: vagrant
+      mode: 0644
+  - name: "APIサーバーが起動しているのを確認"
+    wait_for:
+      host: "{{ groups.master[0] }}"
+      port: 6443
+  - name: "Calicoのインストール"
+    shell: |
+      kubectl apply -f https://docs.projectcalico.org/v3.3/getting-started/kubernetes/installation/hosted/rbac-kdd.yaml | tee -a kubectl_apply_calico.log
+      kubectl apply -f https://docs.projectcalico.org/v3.3/getting-started/kubernetes/installation/hosted/kubernetes-datastore/calico-networking/1.7/calico.yaml | tee -a kubectl_apply_calico.log
+    environment:
+      KUBECONFIG: /etc/kubernetes/admin.conf
+    args:
+      creates: kubectl_apply_calico.log
+  # - name: "kubectl joinコマンドを保存する"
+  #   shell: kubeadm token create --print-join-command
+  #   register: kubeadm_join
+  - name: "kubectl joinコマンドを保存する"
+    shell: cat kubeadm_init.log | grep "kubeadm join"
+    register: kubeadm_join
+- hosts: node
+  become: yes
+  tasks:
+  - name: "APIサーバーが起動しているのを確認"
+    wait_for:
+      host: "{{ groups.master[0] }}"
+      port: 6443
+    when: hostvars[groups.master[0]].kubeadm_join is defined
+  - name: "kubeadm joinコマンドを確認"
+    debug:
+      var: hostvars[groups.master[0]].kubeadm_join.stdout
+  - name: "kubeadm joinコマンドを実行する"
+    shell: "{{ hostvars[groups.master[0]].kubeadm_join.stdout }} | tee -a kubeadm_join.log"
+    args:
+      creates: kubeadm_join.log
+    when: hostvars[groups.master[0]].kubeadm_join is defined

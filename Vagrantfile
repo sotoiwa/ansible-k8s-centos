@@ -1,9 +1,16 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
+# Workerノードの数
+worker_count=2
+
 Vagrant.configure(2) do |config|
 
-  (1..3).each do |i|
+  if Vagrant.has_plugin?("vagrant-vbguest")
+    config.vbguest.auto_update = false
+  end
+
+  (1..worker_count+1).each do |i|
 
     if i == 1 then
       vm_name = "master"

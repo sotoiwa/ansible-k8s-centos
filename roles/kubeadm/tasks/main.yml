@@ -1,0 +1,62 @@
+- name: Disable swap
+  shell: swapoff -a
+- name: Disable swap permanently
+  replace:
+    path: /etc/fstab
+    regexp: '^(\s*[^#].* swap .*)$'
+    replace: '#\1'
+- name: Add kubernetes repository"
+  yum_repository:
+    name: kubernetes
+    description: Kubernetes
+    baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+    enabled: yes
+    gpgcheck: yes
+    repo_gpgcheck: yes
+    gpgkey:
+    - https://packages.cloud.google.com/yum/doc/yum-key.gpg
+    - https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+    exclude: kube*
+- name: Disable SELinux
+  selinux:
+    policy: targeted
+    state: permissive
+- name: Install kubeadm, kubelet and kubectl
+  yum:
+    name:
+    - kubelet
+    - kubeadm
+    - kubectl
+    state: latest
+    disable_excludes: kubernetes
+  register: result
+  retries: 3
+  until: result is succeeded
+  delay: 3
+  notify: Restart kubelet
+- name: "net.bridge.bridge-nf-call-ip6tables=1の設定"
+  sysctl:
+    name: net.bridge.bridge-nf-call-ip6tables
+    value: 1
+    sysctl_file: /etc/sysctl.d/k8s.conf
+    reload: yes
+- name: "net.bridge.bridge-nf-call-iptables=1の設定"
+  sysctl:
+    name: net.bridge.bridge-nf-call-iptables
+    value: 1
+    sysctl_file: /etc/sysctl.d/k8s.conf
+    reload: yes
+- name: Enable kubelet
+  service:
+    name: kubelet
+    enabled: yes
+- name: Get private NIC IP address
+  shell: ip a show eth1 | grep inet | grep -v inet6 | awk '{print $2}' | cut -f1 -d/
+  register: ipaddr
+  changed_when: False
+- name: config kubelet to bind private NIC
+  replace:
+    path: /etc/sysconfig/kubelet
+    regexp: '^(KUBELET_EXTRA_ARGS=.*)$'
+    replace: 'KUBELET_EXTRA_ARGS=--node-ip={{ ipaddr.stdout }}'
+  notify: Restart kubelet
